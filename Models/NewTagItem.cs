@@ -7,8 +7,6 @@ public class NewTagItem : ItemBase
         positionX = x;
         positionY = y;
         id = Utils.GetId();
-        sizeX = Constants.NEW_TAG_ITEM_SIZE_X;
-        sizeY = Constants.NEW_TAG_ITEM_SIZE_Y;
         isInPlay = inPlay;
     }
 }

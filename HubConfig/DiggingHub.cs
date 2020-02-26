@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
 
@@ -30,7 +31,9 @@ public class DiggingHub : Hub
         PersistingValues.TagPlayerId = playerId;
         await Clients.All.SendAsync("broadcastPlayerBecomesTag", playerId);
     }
-    public async Task BroadcastNewTagItemData() => await Clients.All.SendAsync("newTag", PersistingValues.TagItem);   
+    public async Task BroadcastNewTagItemData() => await Clients.All.SendAsync("newTag", PersistingValues.TagItem);
+
+    public async Task BroadcastDigMessage(int positionX, int positionY) => await Clients.All.SendAsync("broadcastDigMessage", GetDigResponse(positionX, positionY));
 
     public override Task OnConnectedAsync()
     {
@@ -46,26 +49,40 @@ public class DiggingHub : Hub
         return base.OnDisconnectedAsync(exception);
     }
 
-    public List<Obstacle> GetObstacles(bool generateNewObstacles)
+    public List<Coordinate> GetObstacles(bool generateNewObstacles)
     {
         if (generateNewObstacles)
         {
             var rng = new Random();
-            var amount = rng.Next(3, 8);
-            var obstacles = new List<Obstacle>();
+            var amount = rng.Next(Constants.OBSTACLE_AMOUNT_MIN, Constants.OBSTACLE_AMOUNT_MAX);
+            var obstacles = new List<Coordinate>();
             for (var i = 0; i < amount; i++)
             {
-                obstacles.Add(new Obstacle() { 
-                    positionX = rng.Next(Constants.OBSTACLE_POSITION_X_MIN, Constants.OBSTACLE_POSITION_X_MAX), 
-                    positionY = rng.Next(Constants.OBSTACLE_POSITION_Y_MIN, Constants.OBSTACLE_POSITION_Y_MAX), 
-                    sizeX = rng.Next(Constants.OBSTACLE_SIZE_MIN, Constants.OBSTACLE_SIZE_MAX), 
-                    sizeY = rng.Next(Constants.OBSTACLE_SIZE_MIN, Constants.OBSTACLE_SIZE_MAX), 
-                    id = Utils.GetId() 
-                });
+                var newObstacle = new Coordinate(rng.Next(Constants.OBSTACLE_POSITION_X_MIN, Constants.OBSTACLE_POSITION_X_MAX), rng.Next(Constants.OBSTACLE_POSITION_Y_MIN, Constants.OBSTACLE_POSITION_Y_MAX));
+
+                //Don't allow obstacles with the same position.
+                if (obstacles.Any(o => o.x == newObstacle.x && o.y == newObstacle.y))
+                {
+                    i--;
+                }
+                else
+                {
+                    obstacles.Add(newObstacle);
+                }
             }
             PersistingValues.Obstacles = obstacles;
         }
 
         return PersistingValues.Obstacles;
-    }    
+    }
+
+    private TerrainInfo GetDigResponse(int positionX, int positionY)
+    {
+        var newEmptyPosition = new Coordinate(positionX, positionY);
+        if (!PersistingValues.EmptySpaces.Any(coordinate => coordinate.x == newEmptyPosition.x && coordinate.y == newEmptyPosition.y))
+        {
+            PersistingValues.EmptySpaces.Add(newEmptyPosition);
+        }        
+        return new TerrainInfo(newEmptyPosition, Enums.TerrainType.Empty);
+    }
 }

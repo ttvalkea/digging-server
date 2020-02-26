@@ -1,9 +1,8 @@
 public static class Enums
 {
-    public enum MovementState
+    public enum TerrainType
     {
-        Stopped = 1,
-        Forward,
-        Backward
+        Empty = 1,
+        Obstacle
     }
 }
