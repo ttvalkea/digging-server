@@ -21,11 +21,30 @@ public class DiggingHub : Hub
 
     public async Task BroadcastDigMessage(int positionX, int positionY) => await Clients.All.SendAsync("broadcastDigMessage", GetDigResponse(positionX, positionY));
 
+    public async Task BroadcastMapInfo(bool generateNewMap) => await Clients.All.SendAsync("broadcastMapInfo", GetMapInfo(generateNewMap));
+
+
     public override Task OnConnectedAsync()
     {
         PersistingValues.IdsOfConnectedClients.Add(Context.ConnectionId);
         BroadcastConnectionAmountData(PersistingValues.IdsOfConnectedClients.Count);
+
+        //When the first player connects, if there are no obstacles, generate them
+        if (PersistingValues.IdsOfConnectedClients.Count == 1 && PersistingValues.Obstacles.Count == 0)
+        {
+            BroadcastGetObstacles(true);
+        }
+
         return base.OnConnectedAsync();
+    }
+
+    private MapInfo GetMapInfo(bool generateNewMap)
+    {
+        return new MapInfo()
+        {
+            emptySpaces = PersistingValues.EmptySpaces,
+            obstacles = GetObstacles(generateNewMap)
+        };
     }
 
     public override Task OnDisconnectedAsync(Exception exception)
