@@ -8,7 +8,7 @@ public static class PersistingValues
 {
     static PersistingValues() {
         IdsOfConnectedClients = new List<string>();
-        Obstacles = new List<Coordinate>();
+        Obstacles = new List<Obstacle>();
         EmptySpaces = new List<Coordinate>();
         TagPlayerId = "";
         StartNewTagInfoSentThisCycleResetTimer();
@@ -24,7 +24,7 @@ public static class PersistingValues
     public static bool NewTagInfoSentThisCycle { get; set; }
     public static NewTagItem TagItem { get; set; }
     public static string TagPlayerId { get; set; }
-    public static List<Coordinate> Obstacles { get; set; }
+    public static List<Obstacle> Obstacles { get; set; }
     public static List<Coordinate> EmptySpaces { get; set; }
     public static List<string> IdsOfConnectedClients { get; set; }
 

@@ -14,23 +14,9 @@ public class DiggingHub : Hub
     public async Task BroadcastFireballHitPlayerMessage(Fireball fireball, Player player)
     {
         await Clients.All.SendAsync("broadcastFireballHitPlayerMessage", new FireballHitPlayerData(fireball, player));
-
-        //The player who knocks out the tag player becomes the tag.
-        if (player.hitPoints <= 1 && player.id == PersistingValues.TagPlayerId)
-        {
-            await BroadcastPlayerBecomesTag(fireball.casterId);
-        }
     }
     public async Task BroadcastGetObstacles(bool generateNewObstacles) => await Clients.All.SendAsync("broadcastGetObstacles", GetObstacles(generateNewObstacles));
-    public async Task BroadcastPlayerHitNewTagItem(string playerId) {
-        await BroadcastPlayerBecomesTag(playerId);
-        PersistingValues.TagItem = new NewTagItem(0, 0, false);
-        await BroadcastNewTagItemData();
-    }
-    public async Task BroadcastPlayerBecomesTag(string playerId) {
-        PersistingValues.TagPlayerId = playerId;
-        await Clients.All.SendAsync("broadcastPlayerBecomesTag", playerId);
-    }
+
     public async Task BroadcastNewTagItemData() => await Clients.All.SendAsync("newTag", PersistingValues.TagItem);
 
     public async Task BroadcastDigMessage(int positionX, int positionY) => await Clients.All.SendAsync("broadcastDigMessage", GetDigResponse(positionX, positionY));
@@ -49,24 +35,28 @@ public class DiggingHub : Hub
         return base.OnDisconnectedAsync(exception);
     }
 
-    public List<Coordinate> GetObstacles(bool generateNewObstacles)
+    public List<Obstacle> GetObstacles(bool generateNewObstacles)
     {
         if (generateNewObstacles)
         {
             var rng = new Random();
             var amount = rng.Next(Constants.OBSTACLE_AMOUNT_MIN, Constants.OBSTACLE_AMOUNT_MAX);
-            var obstacles = new List<Coordinate>();
+            var obstacles = new List<Obstacle>();
             for (var i = 0; i < amount; i++)
             {
-                var newObstacle = new Coordinate(rng.Next(Constants.OBSTACLE_POSITION_X_MIN, Constants.OBSTACLE_POSITION_X_MAX), rng.Next(Constants.OBSTACLE_POSITION_Y_MIN, Constants.OBSTACLE_POSITION_Y_MAX));
+                var newObstacle = new Obstacle(rng.Next(Constants.OBSTACLE_POSITION_X_MIN, Constants.OBSTACLE_POSITION_X_MAX), rng.Next(Constants.OBSTACLE_POSITION_Y_MIN, Constants.OBSTACLE_POSITION_Y_MAX));
 
                 //Don't allow obstacles with the same position.
-                if (obstacles.Any(o => o.x == newObstacle.x && o.y == newObstacle.y))
+                if (obstacles.Any(o => o.positionX == newObstacle.positionX && o.positionY == newObstacle.positionY))
                 {
                     i--;
                 }
                 else
                 {
+                    if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.x == newObstacle.positionX && emptySpace.y == newObstacle.positionY))
+                    {
+                        newObstacle.isVisible = true;
+                    }
                     obstacles.Add(newObstacle);
                 }
             }
@@ -76,13 +66,25 @@ public class DiggingHub : Hub
         return PersistingValues.Obstacles;
     }
 
+    public async Task BroadcastGetEmptySpaces() => await Clients.All.SendAsync("broadcastGetEmptySpaces", PersistingValues.EmptySpaces);
+
     private TerrainInfo GetDigResponse(int positionX, int positionY)
     {
-        var newEmptyPosition = new Coordinate(positionX, positionY);
-        if (!PersistingValues.EmptySpaces.Any(coordinate => coordinate.x == newEmptyPosition.x && coordinate.y == newEmptyPosition.y))
+        var newPosition = new Coordinate(positionX, positionY);
+        var terrainType = Enums.TerrainType.Empty;
+
+        //If the position that is being dug has an obstacle, don't make an empty space 
+        var possibleObstacle = PersistingValues.Obstacles.FirstOrDefault(obstacle => obstacle.positionX == newPosition.x && obstacle.positionY == newPosition.y);
+        if (possibleObstacle != null)
         {
-            PersistingValues.EmptySpaces.Add(newEmptyPosition);
-        }        
-        return new TerrainInfo(newEmptyPosition, Enums.TerrainType.Empty);
+            possibleObstacle.isVisible = true;
+            terrainType = Enums.TerrainType.Obstacle;
+        }      
+        else if (!PersistingValues.EmptySpaces.Any(coordinate => coordinate.x == newPosition.x && coordinate.y == newPosition.y))
+        {
+            PersistingValues.EmptySpaces.Add(newPosition);
+        }
+        
+        return new TerrainInfo(newPosition, terrainType);
     }
 }
