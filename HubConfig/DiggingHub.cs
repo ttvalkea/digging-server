@@ -70,10 +70,10 @@ public class DiggingHub : Hub
         {
             var coordinate = new Coordinate(rng.Next(0, mapSizeX), rng.Next(0, mapSizeY));
             var soilLevel = (SoilLevel)(rng.Next(1, 4)); // Returns soil level 1-3
-            var newSoilTile = new SoilInfo(coordinate, soilLevel);
+            var newSoilTile = new SoilInfo(coordinate.positionX, coordinate.positionY, soilLevel);
             //Don't allow obstacles or other soil tiles with the same position.
-            if (soilTiles.Any(st => st.coordinate.x == newSoilTile.coordinate.x && st.coordinate.y == newSoilTile.coordinate.y) 
-                || PersistingValues.Obstacles.Any(o => o.positionX == newSoilTile.coordinate.x && o.positionY == newSoilTile.coordinate.y))
+            if (soilTiles.Any(st => st.positionX == newSoilTile.positionX && st.positionY == newSoilTile.positionY) 
+                || PersistingValues.Obstacles.Any(o => o.positionX == newSoilTile.positionX && o.positionY == newSoilTile.positionY))
             {
                 i--;
             }
@@ -101,7 +101,7 @@ public class DiggingHub : Hub
             }
             else
             {
-                if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.x == newObstacle.positionX && emptySpace.y == newObstacle.positionY))
+                if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.positionX == newObstacle.positionX && emptySpace.positionY == newObstacle.positionY))
                 {
                     newObstacle.isVisible = true;
                 }
@@ -119,17 +119,17 @@ public class DiggingHub : Hub
         var terrainType = Enums.TerrainType.Empty;
 
         //If the position that is being dug has an obstacle, don't make an empty space 
-        var possibleObstacle = PersistingValues.Obstacles.FirstOrDefault(obstacle => obstacle.positionX == newPosition.x && obstacle.positionY == newPosition.y);
+        var possibleObstacle = PersistingValues.Obstacles.FirstOrDefault(obstacle => obstacle.positionX == newPosition.positionX && obstacle.positionY == newPosition.positionY);
         if (possibleObstacle != null)
         {
             possibleObstacle.isVisible = true;
             terrainType = Enums.TerrainType.Obstacle;
         }      
-        else if (!PersistingValues.EmptySpaces.Any(coordinate => coordinate.x == newPosition.x && coordinate.y == newPosition.y))
+        else if (!PersistingValues.EmptySpaces.Any(coordinate => coordinate.positionX == newPosition.positionX && coordinate.positionY == newPosition.positionY))
         {
             PersistingValues.EmptySpaces.Add(newPosition);
         }
 
-        return new TerrainInfo(newPosition, terrainType);
+        return new TerrainInfo(newPosition.positionX, newPosition.positionY, terrainType);
     }
 }

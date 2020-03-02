@@ -51,7 +51,7 @@ public class HubController : ControllerBase
         foreach (var soilTile in PersistingValues.SoilTiles)
         {
             //Soil tile is revealed and doesn't already have fruit
-            if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.x == soilTile.coordinate.x && emptySpace.y == soilTile.coordinate.y) && !soilTile.hasFruit)
+            if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.positionX == soilTile.positionX && emptySpace.positionY == soilTile.positionY) && !soilTile.hasFruit)
             {
                 if (rng.Next(1, 1000) <= Constants.FRUIT_GROWTH_CHANCE_PERMILLE) {
                     soilTile.hasFruit = true;

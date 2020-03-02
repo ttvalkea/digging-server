@@ -1,11 +1,11 @@
-public class Coordinate
+public class Coordinate : IHasPosition
 {
-    public int x { get; set; }
-    public int y { get; set; }
+    public int positionX { get; set; }
+    public int positionY { get; set; }
 
-    public Coordinate(int positionX, int positionY)
+    public Coordinate(int x, int y)
     {
-        x = positionX;
-        y = positionY;
+        positionX = x;
+        positionY = y;
     } 
 }

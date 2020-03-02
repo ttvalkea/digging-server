@@ -1,12 +1,14 @@
 using static Enums;
 
-public class TerrainInfo
+public class TerrainInfo : IHasPosition
 {
+    public int positionX { get; set; }
+    public int positionY { get; set; }
     public TerrainType terrainType { get; set; }
-    public Coordinate coordinate { get; set; }
-    public TerrainInfo(Coordinate c, TerrainType tt)
+    public TerrainInfo(int x, int y, TerrainType tt)
     {
-        coordinate = c;
+        positionX = x;
+        positionY = y;
         terrainType = tt;
     }
 }
