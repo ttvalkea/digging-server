@@ -5,4 +5,10 @@ public static class Enums
         Empty = 1,
         Obstacle
     }
+    public enum SoilLevel
+    {
+        Good = 1,
+        Great,
+        Exuberant
+    }
 }

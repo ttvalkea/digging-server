@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
+using static Enums;
 
 public class DiggingHub : Hub
 {
@@ -15,13 +16,11 @@ public class DiggingHub : Hub
     {
         await Clients.All.SendAsync("broadcastFireballHitPlayerMessage", new FireballHitPlayerData(fireball, player));
     }
-    public async Task BroadcastGetObstacles(bool generateNewObstacles) => await Clients.All.SendAsync("broadcastGetObstacles", GetObstacles(generateNewObstacles));
-
-    public async Task BroadcastNewTagItemData() => await Clients.All.SendAsync("newTag", PersistingValues.TagItem);
 
     public async Task BroadcastDigMessage(int positionX, int positionY) => await Clients.All.SendAsync("broadcastDigMessage", GetDigResponse(positionX, positionY));
 
-    public async Task BroadcastMapInfo(bool generateNewMap) => await Clients.All.SendAsync("broadcastMapInfo", GetMapInfo(generateNewMap));
+    public async Task BroadcastMapInfo(bool generateNewMap, int? mapSizeX = null, int? mapSizeY = null, int? obstacleAmountMin = null, int? obstacleAmountMax = null, int? soilAmountMin = null, int? soilAmountMax = null) 
+        => await Clients.All.SendAsync("broadcastMapInfo", GetMapInfo(generateNewMap, mapSizeX, mapSizeY, obstacleAmountMin, obstacleAmountMax, soilAmountMin, soilAmountMax));
 
 
     public override Task OnConnectedAsync()
@@ -29,21 +28,27 @@ public class DiggingHub : Hub
         PersistingValues.IdsOfConnectedClients.Add(Context.ConnectionId);
         BroadcastConnectionAmountData(PersistingValues.IdsOfConnectedClients.Count);
 
-        //When the first player connects, if there are no obstacles, generate them
-        if (PersistingValues.IdsOfConnectedClients.Count == 1 && PersistingValues.Obstacles.Count == 0)
-        {
-            BroadcastGetObstacles(true);
-        }
-
         return base.OnConnectedAsync();
     }
 
-    private MapInfo GetMapInfo(bool generateNewMap)
+    private MapInfo GetMapInfo(bool generateNewMap, int? mapSizeX = null, int? mapSizeY = null, int? obstacleAmountMin = null, int? obstacleAmountMax = null, int? soilAmountMin = null, int? soilAmountMax = null)
     {
+        if (generateNewMap && (mapSizeX == null || mapSizeY == null || obstacleAmountMin == null || obstacleAmountMax == null || soilAmountMin == null || soilAmountMax == null))
+        {
+            throw new Exception("When generating a new map (generateNewMap == true), all the other parameters must be given (mapSizeY, mapSizeX, obstacleAmountMin, obstacleAmountMax, soilAmountMin, soilAmountMax)");
+        }
+
+        if (generateNewMap)
+        {
+            PersistingValues.Obstacles = GenerateObstacles((int)mapSizeX, (int)mapSizeY, (int)obstacleAmountMin, (int)obstacleAmountMax);
+            PersistingValues.SoilTiles = GenerateSoilTiles((int)mapSizeX, (int)mapSizeY, (int)soilAmountMin, (int)soilAmountMax);
+            PersistingValues.EmptySpaces = new List<Coordinate>();            
+        }
         return new MapInfo()
         {
             emptySpaces = PersistingValues.EmptySpaces,
-            obstacles = GetObstacles(generateNewMap)
+            obstacles = PersistingValues.Obstacles,
+            soilTiles = PersistingValues.SoilTiles
         };
     }
 
@@ -54,35 +59,56 @@ public class DiggingHub : Hub
         return base.OnDisconnectedAsync(exception);
     }
 
-    public List<Obstacle> GetObstacles(bool generateNewObstacles)
+    private List<SoilInfo> GenerateSoilTiles(int mapSizeX, int mapSizeY, int soilAmountMin, int soilAmountMax)
     {
-        if (generateNewObstacles)
+        //Obstacles should be generated before generating soil tiles!
+
+        var rng = new Random();
+        var amount = rng.Next(soilAmountMin, soilAmountMax);
+        var soilTiles = new List<SoilInfo>();
+        for (var i = 0; i < amount; i++)
         {
-            var rng = new Random();
-            var amount = rng.Next(Constants.OBSTACLE_AMOUNT_MIN, Constants.OBSTACLE_AMOUNT_MAX);
-            var obstacles = new List<Obstacle>();
-            for (var i = 0; i < amount; i++)
+            var coordinate = new Coordinate(rng.Next(0, mapSizeX), rng.Next(0, mapSizeY));
+            var soilLevel = (SoilLevel)(rng.Next(1, 4)); // Returns soil level 1-3
+            var newSoilTile = new SoilInfo(coordinate, soilLevel);
+            //Don't allow obstacles or other soil tiles with the same position.
+            if (soilTiles.Any(st => st.coordinate.x == newSoilTile.coordinate.x && st.coordinate.y == newSoilTile.coordinate.y) 
+                || PersistingValues.Obstacles.Any(o => o.positionX == newSoilTile.coordinate.x && o.positionY == newSoilTile.coordinate.y))
             {
-                var newObstacle = new Obstacle(rng.Next(Constants.OBSTACLE_POSITION_X_MIN, Constants.OBSTACLE_POSITION_X_MAX), rng.Next(Constants.OBSTACLE_POSITION_Y_MIN, Constants.OBSTACLE_POSITION_Y_MAX));
-
-                //Don't allow obstacles with the same position.
-                if (obstacles.Any(o => o.positionX == newObstacle.positionX && o.positionY == newObstacle.positionY))
-                {
-                    i--;
-                }
-                else
-                {
-                    if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.x == newObstacle.positionX && emptySpace.y == newObstacle.positionY))
-                    {
-                        newObstacle.isVisible = true;
-                    }
-                    obstacles.Add(newObstacle);
-                }
+                i--;
             }
-            PersistingValues.Obstacles = obstacles;
+            else
+            {
+                soilTiles.Add(newSoilTile);
+            }
         }
+        return soilTiles;
+    }
 
-        return PersistingValues.Obstacles;
+    private List<Obstacle> GenerateObstacles(int mapSizeX, int mapSizeY, int obstacleAmountMin, int obstacleAmountMax)
+    {
+        var rng = new Random();
+        var amount = rng.Next(obstacleAmountMin, obstacleAmountMax);
+        var obstacles = new List<Obstacle>();
+        for (var i = 0; i < amount; i++)
+        {
+            var newObstacle = new Obstacle(rng.Next(0, mapSizeX), rng.Next(0, mapSizeY));
+
+            //Don't allow obstacles with the same position.
+            if (obstacles.Any(o => o.positionX == newObstacle.positionX && o.positionY == newObstacle.positionY))
+            {
+                i--;
+            }
+            else
+            {
+                if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.x == newObstacle.positionX && emptySpace.y == newObstacle.positionY))
+                {
+                    newObstacle.isVisible = true;
+                }
+                obstacles.Add(newObstacle);
+            }
+        }
+        return obstacles;
     }
 
     public async Task BroadcastGetEmptySpaces() => await Clients.All.SendAsync("broadcastGetEmptySpaces", PersistingValues.EmptySpaces);
@@ -103,7 +129,7 @@ public class DiggingHub : Hub
         {
             PersistingValues.EmptySpaces.Add(newPosition);
         }
-        
+
         return new TerrainInfo(newPosition, terrainType);
     }
 }

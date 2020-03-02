@@ -10,46 +10,45 @@ public static class PersistingValues
         IdsOfConnectedClients = new List<string>();
         Obstacles = new List<Obstacle>();
         EmptySpaces = new List<Coordinate>();
-        TagPlayerId = "";
-        StartNewTagInfoSentThisCycleResetTimer();
-        NewTagInfoSentThisCycle = false;
-        StartNewTagItemTimer();
+        SoilTiles = new List<SoilInfo>();
+        StartFruitInfoSentThisCycleResetTimer();
+        FruitInfoSentThisCycle = false;
+        StartFruitInfoTimer();
 
-        //Start this timer half a second later than the resetting timer. This way, NewTagInfoSentThisCycle should always be false for the first attempt of NewTagItemTimer.Elapsed event.
-        Task.Delay(500).ContinueWith(t => EnableNewTagItemTimer());
+        //Start this timer half a second later than the resetting timer. This way, FruitInfoSentThisCycle should always be false for the first attempt of FruitInfoTimer.Elapsed event.
+        Task.Delay(500).ContinueWith(t => EnableFruitInfoTimer());
     }
 
-    public static Timer NewTagItemTimer { get; set; }
-    public static Timer NewTagInfoSentThisCycleResetTimer { get; set; }
-    public static bool NewTagInfoSentThisCycle { get; set; }
-    public static NewTagItem TagItem { get; set; }
-    public static string TagPlayerId { get; set; }
+    public static Timer FruitInfoTimer { get; set; }
+    public static Timer FruitInfoSentThisCycleResetTimer { get; set; }
+    public static bool FruitInfoSentThisCycle { get; set; }
     public static List<Obstacle> Obstacles { get; set; }
     public static List<Coordinate> EmptySpaces { get; set; }
+    public static List<SoilInfo> SoilTiles { get; set; }
     public static List<string> IdsOfConnectedClients { get; set; }
 
 
     //Set up loops
-    private static void StartNewTagItemTimer()
+    private static void StartFruitInfoTimer()
     {
-        NewTagItemTimer = new Timer(Constants.NEW_TAG_ITEM_SPAWN_INTERVAL_MS);
-        NewTagItemTimer.AutoReset = true;
-        NewTagItemTimer.Enabled = false;
+        FruitInfoTimer = new Timer(Constants.FRUIT_GROWTH_INTERVAL_MS);
+        FruitInfoTimer.AutoReset = true;
+        FruitInfoTimer.Enabled = false;
     }
-    private static void EnableNewTagItemTimer()
+    private static void EnableFruitInfoTimer()
     {
-        NewTagItemTimer.Enabled = true;
+        FruitInfoTimer.Enabled = true;
     }
-    private static void StartNewTagInfoSentThisCycleResetTimer()
+    private static void StartFruitInfoSentThisCycleResetTimer()
     {
-        NewTagInfoSentThisCycleResetTimer = new Timer(Constants.NEW_TAG_ITEM_SPAWN_INTERVAL_MS);
-        NewTagInfoSentThisCycleResetTimer.AutoReset = true;
-        NewTagInfoSentThisCycleResetTimer.Elapsed += OnNewTagInfoSentThisCycleResetTimerEvent;
-        NewTagInfoSentThisCycleResetTimer.Enabled = true;
+        FruitInfoSentThisCycleResetTimer = new Timer(Constants.FRUIT_GROWTH_INTERVAL_MS);
+        FruitInfoSentThisCycleResetTimer.AutoReset = true;
+        FruitInfoSentThisCycleResetTimer.Elapsed += OnFruitInfoSentThisCycleResetTimerEvent;
+        FruitInfoSentThisCycleResetTimer.Enabled = true;
     }
-    private static void OnNewTagInfoSentThisCycleResetTimerEvent(Object source, ElapsedEventArgs e)
+    private static void OnFruitInfoSentThisCycleResetTimerEvent(Object source, ElapsedEventArgs e)
     {
-        NewTagInfoSentThisCycle = false;
+        FruitInfoSentThisCycle = false;
     }
 }
 
