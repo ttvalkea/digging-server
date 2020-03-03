@@ -17,7 +17,19 @@ public static class GameMechanics
         {
             PersistingValues.Obstacles = GenerateObstacles((int)mapSizeX, (int)mapSizeY, (int)obstacleAmountMin, (int)obstacleAmountMax);
             PersistingValues.SoilTiles = GenerateSoilTiles((int)mapSizeX, (int)mapSizeY, (int)soilAmountMin, (int)soilAmountMax);
-            PersistingValues.EmptySpaces = new List<Coordinate>();
+
+            var empties = new List<Coordinate>(); 
+            for (int x = 0; x < mapSizeX; x++)
+            {
+                for (int y = 0; y < mapSizeY; y++)
+                {
+                    if (!PersistingValues.Obstacles.Any(o => o.positionX == x && o.positionY == y)) {
+                        empties.Add(new Coordinate(x, y));
+                    }
+                }
+            }
+
+            PersistingValues.EmptySpaces = empties;//new List<Coordinate>();
         }
         return new MapInfo()
         {
@@ -31,26 +43,93 @@ public static class GameMechanics
     {
         //Obstacles should be generated before generating soil tiles!
 
-        var rng = new Random();
-        var amount = rng.Next(soilAmountMin, soilAmountMax);
-        var soilTiles = new List<SoilInfo>();
-        for (var i = 0; i < amount; i++)
+        //Soil tiles are generated in phases
+        var soilGenerationPhases = new List<SoilGenerationData>()
         {
-            var coordinate = new Coordinate(rng.Next(0, mapSizeX), rng.Next(0, mapSizeY));
-            var soilLevel = (SoilLevel)(rng.Next(1, 4)); // Returns soil level 1-3
-            var newSoilTile = new SoilInfo(coordinate.positionX, coordinate.positionY, soilLevel);
-            //Don't allow obstacles or other soil tiles with the same position.
-            if (soilTiles.Any(st => st.positionX == newSoilTile.positionX && st.positionY == newSoilTile.positionY)
-                || PersistingValues.Obstacles.Any(o => o.positionX == newSoilTile.positionX && o.positionY == newSoilTile.positionY))
+            new SoilGenerationData()
             {
-                i--;
-            }
-            else
+                areaDiameterPercentageOfMapSize = Constants.BEST_SOIL_AREA_DIAMETER_PERCENTAGE_OF_MAP_SIZE,
+                areaPercentageOfAllSoilTiles = Constants.BEST_SOIL_AREA_PERCENTAGE_OF_ALL_SOIL_TILES,
+                areaOddsForLevel1Soil = Constants.BEST_SOIL_AREA_ODDS_FOR_LEVEL_1_SOIL,
+                areaOddsForLevel2Soil = Constants.BEST_SOIL_AREA_ODDS_FOR_LEVEL_2_SOIL,
+                areaOddsForLevel3Soil = Constants.BEST_SOIL_AREA_ODDS_FOR_LEVEL_3_SOIL
+            },
+            new SoilGenerationData()
             {
-                soilTiles.Add(newSoilTile);
+                areaDiameterPercentageOfMapSize = Constants.SECOND_BEST_SOIL_AREA_DIAMETER_PERCENTAGE_OF_MAP_SIZE,
+                areaPercentageOfAllSoilTiles = Constants.SECOND_BEST_SOIL_AREA_PERCENTAGE_OF_ALL_SOIL_TILES,
+                areaOddsForLevel1Soil = Constants.SECOND_BEST_SOIL_AREA_ODDS_FOR_LEVEL_1_SOIL,
+                areaOddsForLevel2Soil = Constants.SECOND_BEST_SOIL_AREA_ODDS_FOR_LEVEL_2_SOIL,
+                areaOddsForLevel3Soil = Constants.SECOND_BEST_SOIL_AREA_ODDS_FOR_LEVEL_3_SOIL
+            },
+            new SoilGenerationData()
+            {
+                areaDiameterPercentageOfMapSize = Constants.THIRD_BEST_SOIL_AREA_DIAMETER_PERCENTAGE_OF_MAP_SIZE,
+                areaPercentageOfAllSoilTiles = Constants.THIRD_BEST_SOIL_AREA_PERCENTAGE_OF_ALL_SOIL_TILES,
+                areaOddsForLevel1Soil = Constants.THIRD_BEST_SOIL_AREA_ODDS_FOR_LEVEL_1_SOIL,
+                areaOddsForLevel2Soil = Constants.THIRD_BEST_SOIL_AREA_ODDS_FOR_LEVEL_2_SOIL,
+                areaOddsForLevel3Soil = Constants.THIRD_BEST_SOIL_AREA_ODDS_FOR_LEVEL_3_SOIL
             }
-        }
+        };
+
+        var rng = new Random();
+        var soilTiles = new List<SoilInfo>();
+        var totalSoilTileAmount = rng.Next(soilAmountMin, soilAmountMax);
+        foreach (var soilGenerationPhase in soilGenerationPhases)
+        {
+            var soilTileAmount = (int)Math.Round((double)totalSoilTileAmount * soilGenerationPhase.areaPercentageOfAllSoilTiles / 100);
+
+            var minXCoordinate = GetAreaOffsetFromPlayAreaEdgeForSoilGeneration(mapSizeX, soilGenerationPhase.areaDiameterPercentageOfMapSize);
+            var maxXCoordinate = mapSizeX - GetAreaOffsetFromPlayAreaEdgeForSoilGeneration(mapSizeX, soilGenerationPhase.areaDiameterPercentageOfMapSize);
+            var minYCoordinate = GetAreaOffsetFromPlayAreaEdgeForSoilGeneration(mapSizeY, soilGenerationPhase.areaDiameterPercentageOfMapSize);
+            var maxYCoordinate = mapSizeY - GetAreaOffsetFromPlayAreaEdgeForSoilGeneration(mapSizeY, soilGenerationPhase.areaDiameterPercentageOfMapSize);
+
+            // Soil level pool has shares of different soil levels. 
+            var soilLevelPool = GetSoilLevelPool(soilGenerationPhase);
+
+            for (var i = 0; i < soilTileAmount; i++)
+            {
+                var coordinate = new Coordinate(rng.Next(minXCoordinate, maxXCoordinate), rng.Next(minYCoordinate, maxYCoordinate));
+                var soilLevel = soilLevelPool[rng.Next(soilLevelPool.Count)];
+                var newSoilTile = new SoilInfo(coordinate.positionX, coordinate.positionY, soilLevel);
+                //Don't allow obstacles or other soil tiles with the same position.
+                if (soilTiles.Any(st => st.positionX == newSoilTile.positionX && st.positionY == newSoilTile.positionY)
+                    || PersistingValues.Obstacles.Any(o => o.positionX == newSoilTile.positionX && o.positionY == newSoilTile.positionY))
+                {
+                    i--;
+                }
+                else
+                {
+                    soilTiles.Add(newSoilTile);
+                }
+            }
+        }        
+        
         return soilTiles;
+    }
+
+    private static List<SoilLevel> GetSoilLevelPool(SoilGenerationData soilGenerationPhase)
+    {
+        var soilLevelPool = new List<SoilLevel>();
+        for (int i = 0; i < soilGenerationPhase.areaOddsForLevel1Soil; i++)
+        {
+            soilLevelPool.Add(SoilLevel.Good);
+        }
+        for (int i = 0; i < soilGenerationPhase.areaOddsForLevel2Soil; i++)
+        {
+            soilLevelPool.Add(SoilLevel.Great);
+        }
+        for (int i = 0; i < soilGenerationPhase.areaOddsForLevel3Soil; i++)
+        {
+            soilLevelPool.Add(SoilLevel.Exuberant);
+        }
+        return soilLevelPool;
+    }
+
+    private static int GetAreaOffsetFromPlayAreaEdgeForSoilGeneration(int mapSize, int areaDiameterPercentageOfMapSize)
+    {
+        var offsetFromTheEdge = (int)Math.Round((double)mapSize / 2) - (int)Math.Round((double)mapSize * areaDiameterPercentageOfMapSize / 100 / 2);
+        return offsetFromTheEdge;
     }
 
     public static List<Obstacle> GenerateObstacles(int mapSizeX, int mapSizeY, int obstacleAmountMin, int obstacleAmountMax)
