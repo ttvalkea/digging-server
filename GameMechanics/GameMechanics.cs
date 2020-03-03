@@ -18,18 +18,18 @@ public static class GameMechanics
             PersistingValues.Obstacles = GenerateObstacles((int)mapSizeX, (int)mapSizeY, (int)obstacleAmountMin, (int)obstacleAmountMax);
             PersistingValues.SoilTiles = GenerateSoilTiles((int)mapSizeX, (int)mapSizeY, (int)soilAmountMin, (int)soilAmountMax);
 
-            var empties = new List<Coordinate>(); 
-            for (int x = 0; x < mapSizeX; x++)
-            {
-                for (int y = 0; y < mapSizeY; y++)
-                {
-                    if (!PersistingValues.Obstacles.Any(o => o.positionX == x && o.positionY == y)) {
-                        empties.Add(new Coordinate(x, y));
-                    }
-                }
-            }
-
-            PersistingValues.EmptySpaces = empties;//new List<Coordinate>();
+            var emptyTiles = new List<Coordinate>();
+            //Uncomment for an empty map
+            //for (int x = 0; x < mapSizeX; x++)
+            //{
+            //    for (int y = 0; y < mapSizeY; y++)
+            //    {
+            //        if (!PersistingValues.Obstacles.Any(o => o.positionX == x && o.positionY == y)) {
+            //            emptyTiles.Add(new Coordinate(x, y));
+            //        }
+            //    }
+            //}
+            PersistingValues.EmptySpaces = emptyTiles;
         }
         return new MapInfo()
         {
