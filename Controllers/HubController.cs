@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using System;
-using System.Linq;
 using System.Threading.Tasks;
 using System.Timers;
 
@@ -41,24 +40,9 @@ public class HubController : ControllerBase
 
     private async Task SendFruitInfoToAllClients()
     {
-        GenerateFruit();
-        await _hub.Clients.All.SendAsync("fruitInfo", PersistingValues.SoilTiles); 
-    }
-
-    private void GenerateFruit()
-    {
-        var rng = new Random();
-        foreach (var soilTile in PersistingValues.SoilTiles)
-        {
-            //Soil tile is revealed and doesn't already have fruit
-            if (PersistingValues.EmptySpaces.Any(emptySpace => emptySpace.positionX == soilTile.positionX && emptySpace.positionY == soilTile.positionY) && !soilTile.hasFruit)
-            {
-                if (rng.Next(1, 1000) <= Constants.FRUIT_GROWTH_CHANCE_PERMILLE) {
-                    soilTile.hasFruit = true;
-                }
-            }
-        }
-    }
+        var tilesWithNewFruits = GameMechanics.GenerateNewFruits();
+        await _hub.Clients.All.SendAsync("fruitInfo", tilesWithNewFruits); 
+    }    
 
     public Timer GameTimer { get; set; }
 }
